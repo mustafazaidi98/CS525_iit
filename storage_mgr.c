@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include storage_mgr.h
+#include "storage_mgr.h"
+
 
 // manipulating page files
 void initStorageManager(void) {
     printf("Storage Manager Initialized\n");
 }
-
 
 // Create a page file -> responsible for read and write
 
@@ -31,8 +31,8 @@ RC createPageFile(char *fileName) {
         return RC_WRITE_FAILED; 
     }
 
-    // Initialize the page buffer with zeros 
-    memset(pageBuffer, 0 , PAGE_SIZE); 
+    // Initialize the page buffer with \0 
+    memset(pageBuffer, '\0' , PAGE_SIZE); 
 
     // Write the buffer to file 
     size_t bytesWritten = fwrite(pageBuffer, sizeof(char) , PAGE_SIZE, newFilePtr); 
@@ -137,3 +137,70 @@ RC destroyPageFile(char *fileToDestroy){
     return RC_OK; 
 }
 
+
+//The method reads the block at position pageNum from a file and stores its content in the memory pointed
+//to by the memPage page handle.
+//If the file has less than pageNum pages, the method should return RC READ NON EXISTING PAGE.
+RC readBlock(int pageNum,SM_FileHandle *fHandle,SM_PageHandle memPage){
+//if the given page number exceeds the total pages, or is less than zero                 
+	if(pageNum<0||(*fHandle).totalNumPages<pageNum){
+		return RC_READ_NON_EXISTING_PAGE;
+	}
+    	FILE *file;
+		float memPageSize;
+		//moving file start pointer to required page
+		fseek(file,pageNum*PAGE_SIZE, SEEK_SET);
+		//copying page to memory
+		memPageSize = fread(memPage,sizeof(char),PAGE_SIZE,file);
+		//checking if any anomaly
+		if(memPageSize!=PAGE_SIZE){
+			return RC_READ_NON_EXISTING_PAGE;
+		}
+		//updating current page pointer
+		(*fHandle).curPagePos = pageNum;
+		return RC_OK;
+}
+
+//Return the current page position in a file
+int getBlockPos(SM_FileHandle *fHandle)
+{
+	if (fHandle == NULL)
+       return RC_FILE_NOT_FOUND;
+	return (*fHandle).curPagePos;
+}
+
+//Read the first page in a file
+RC readFirstBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
+{
+	if (fHandle == NULL)
+	   return RC_FILE_NOT_FOUND;
+	return readBlock(0, fHandle, memPage);
+}
+//Read the last page in a file
+RC readLastBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
+{
+	if (fHandle == NULL)
+	   return RC_FILE_NOT_FOUND;
+	return readBlock((*fHandle).totalNumPages-1, fHandle, memPage);
+}
+//Read the previous page relative to the curPagePos
+RC readPreviousBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
+{
+	if (fHandle == NULL)
+		return RC_FILE_NOT_FOUND;
+	return readBlock((*fHandle).curPagePos - 1, fHandle, memPage);
+}
+//Read the page at curPagePos
+RC readCurrentBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
+{
+	if (fHandle == NULL)
+		return RC_FILE_NOT_FOUND;
+	return readBlock((*fHandle).curPagePos, fHandle, memPage);
+}
+//Read the next page relative to the curPagePos
+RC readNextBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
+{
+	if (fHandle == NULL)
+		return RC_FILE_NOT_FOUND;
+	return readBlock((*fHandle).curPagePos + 1, fHandle, memPage);
+}
