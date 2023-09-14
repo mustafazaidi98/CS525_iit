@@ -15,7 +15,7 @@ void initStorageManager(void) {
 RC createPageFile(char *fileName) { 
 
     // Initializes file pointer within the function scope 
-    FILE *newFilePtr = fopen(filename , "w+"); 
+    FILE *newFilePtr = fopen(fileName , "w+"); 
 
     // Check if the file was successfully created 
     if (newFilePtr == NULL) { 
@@ -23,12 +23,12 @@ RC createPageFile(char *fileName) {
     }
 
     // Allocate the buffer for a single page 
-    char *pageBuffer = (char*) malloc(PAGE_SIZE)
+    char *pageBuffer = (char*) malloc(PAGE_SIZE);
 
     // Check if memory allocation was successful 
     if(pageBuffer == NULL){
         fclose(newFilePtr); 
-        return RC_MEMORY_ALLOCATION_ERROR; 
+        return RC_WRITE_FAILED; 
     }
 
     // Initialize the page buffer with zeros 
@@ -80,11 +80,12 @@ RC openPageFile(char *fileName , SM_FileHandle *fileHandle){
     }
 
     // Calculate the total number of pages here 
-    int totalPageCount = (fileSize + 1) / PAGE_SIZE ;     // Updae the file handle unformation
-    fileHandle-> mgmtInfo = localFile;
-    fileHandle-> totalNumPages = totalPageCount; 
-    fileHandle -> fileName = fileName; 
-    fileHandle-> curPagePos = 0; 
+    // Updae the file handle unformation
+    int totalPageCount = (fileSize + 1) / PAGE_SIZE ;     
+    fileHandle->mgmtInfo = localFile;
+    fileHandle->totalNumPages = totalPageCount; 
+    fileHandle->fileName = fileName; 
+    fileHandle->curPagePos = 0; 
 
     // Rewind the file pointer to the beginning 
     rewind(localFile); 
@@ -101,16 +102,38 @@ RC closePageFile(SM_FileHandle *fileHandle){
     }
 
     // Close the file 
-    if(fclose((FILE *) fileHandle-> mgmtInfo) != 0) {
-        return RC_FILE_NOT_CLOSED; 
+    if(fclose((FILE *) fileHandle->mgmtInfo) != 0) {
+        return RC_WRITE_FAILED; 
     }
 
     // Update the file handle to an invalid syntax 
-    fileHandle-> mgmtInfo = NULL; 
-    fileHandle-> totalNumPages = 0; 
-    fileHandle-> curPagePos = -1; // set to an invalid position
-    fileHandle-> fileName = NULL; // set to Null 
+    fileHandle->mgmtInfo = NULL; 
+    fileHandle->totalNumPages = 0; 
+    fileHandle->curPagePos = -1; // set to an invalid position
+    fileHandle->fileName = NULL; // set to Null 
 
     return RC_OK;
-     
+
 }
+
+
+
+RC destroyPageFile(char *fileToDestroy){ 
+    FILE *localFilePtr = fopen(fileToDestroy, "r");
+
+    // Check if the file exists by trying to open it
+    if(localFilePtr ==NULL){ 
+        return RC_FILE_NOT_FOUND; 
+    }
+
+    // Close the file if it was successfully opened 
+    fclose(localFilePtr); 
+
+    // Proceed to remove the file 
+    if (remove(fileToDestroy) != 0){
+        return RC_WRITE_FAILED;
+    }
+
+    return RC_OK; 
+}
+
