@@ -204,3 +204,155 @@ RC readNextBlock(SM_FileHandle *fHandle, SM_PageHandle memPage)
 		return RC_FILE_NOT_FOUND;
 	return readBlock((*fHandle).curPagePos + 1, fHandle, memPage);
 }
+
+// Writes a block of data to specific page in an open page file 
+
+RC writeBlock(int pageNum , SM_FileHandle *fileHandle, SM_PageHandle memPage){
+
+// Check if the file handle or memory page is null 
+if(fileHandle == NULL || memPage == NULL){
+    return RC_FILE_HANDLE_NOT_INIT; 
+}
+
+// Validate the page number is in the correct range
+if (pageNum < 0 || pageNum >= fileHandle->totalNumPages){
+    return RC_READ_NON_EXISTING_PAGE;
+}
+
+// Calculate the offset to know where to start writing 
+long offset = pageNum * PAGE_SIZE;
+
+// Set the file pointer to correct position
+if (fseek(fileHandle->mgmtInfo, offset, SEEK_SET) != 0){
+    return RC_WRITE_FAILED;
+}
+
+// Write the page to the file
+size_t writeResult = fwrite(memPage, sizeof(char), PAGE_SIZE, fileHandle->mgmtInfo);
+
+// Check if the writing was successful 
+if(writeResult != PAGE_SIZE){
+    return RC_WRITE_FAILED;
+}
+
+// Update the current page position 
+fileHandle->curPagePos = pageNum;
+
+return RC_OK; 
+
+
+}
+
+// Writes a block of data to te current page position in a open page file 
+
+RC writeCurrentBlock(SM_FileHandle *fileHandle, SM_PageHandle memPage){
+
+    // Check if the file handle is null or if the current page position is invalid
+    if(fileHandle == NULL){
+        return RC_FILE_HANDLE_NOT_INIT; 
+    }
+
+    if (fileHandle->curPagePos < 0 ){
+        return RC_READ_NON_EXISTING_PAGE;
+    }
+
+    // Check if the memPage is null 
+    if(memPage == NULL){
+        return RC_WRITE_FAILED; 
+    }
+
+    // Call the writeBlock function to perform the actual write operation 
+    RC writeStatus = writeBlock(fileHandle->curPagePos, fileHandle, memPage);
+
+    // Check the return status of the writeBlock function   
+    if(writeStatus != RC_OK){
+        return writeStatus; // return the error code
+    
+    }
+
+    return RC_OK;
+
+
+}
+
+// Write a function to append an empty block to the end of the page file
+
+RC appendEmptyBlock(SM_FileHandle *fileHandle){
+
+    // Validate if the file handle and its fileName field are initialized
+    if(fileHandle == NULL || fileHandle->fileName == NULL){
+        return RC_FILE_HANDLE_NOT_INIT; 
+    }
+
+    // Open the file in append mode
+    FILE *appendFile = fopen(fileHandle->fileName, "a+");
+
+    // Check if the file was opened successfully
+    if(appendFile == NULL){
+        return RC_FILE_NOT_FOUND; 
+    }
+
+    // Allocate an empty page buffer filled with zeros 
+    char (*emptyPageBuffer) = (char*) calloc(PAGE_SIZE, sizeof(char));
+    if(emptyPageBuffer == NULL){
+        fclose(appendFile); 
+        // Indicate that the memory allocation failed
+        return RC_WRITE_FAILED; 
+    }
+
+    // Write the empty page to the end of the file 
+    size_t writtenSize = fwrite(emptyPageBuffer, sizeof(char), PAGE_SIZE, appendFile);
+
+    // Validate the number of bytes written
+    if(writtenSize != PAGE_SIZE){
+        fclose(appendFile); 
+        free(emptyPageBuffer); 
+        return RC_WRITE_FAILED; 
+    }
+
+    // Update the file handle's metadata
+    fileHandle->totalNumPages + 1;
+    fileHandle->curPagePos = fileHandle->totalNumPages; 
+    
+    // Close the file and release memory
+    fclose(appendFile);
+    free(emptyPageBuffer);
+
+    return RC_OK;
+}
+
+// Write a function to ensure that the capacity of the page file is at least numberOfPages, appending empty blocks as needed
+RC ensureCapacity(int numberOfPages, SM_FileHandle *fileHandle){
+
+    // Check if the file handle is initialized 
+    if(fileHandle == NULL || fileHandle->fileName == NULL){
+        return RC_FILE_HANDLE_NOT_INIT; 
+    }
+
+    // Check if the current total number of pages is already sufficient
+    if (fileHandle -> totalNumPages >= numberOfPages){
+        return RC_OK; 
+    }
+
+    // Open the file in append mode 
+    FILE *openFile = fopen(fileHandle->fileName, "a+");
+    if(openFile == NULL){
+        return RC_FILE_NOT_FOUND; 
+    }
+
+    // Loop to append enough empty blocks to the file 
+    while(fileHandle->totalNumPages < numberOfPages){
+        RC status = appendEmptyBlock(fileHandle);
+        if(status != RC_OK){
+            fclose(openFile); 
+            return status; 
+        }
+    }
+
+    // Close the file
+    fclose(openFile);
+
+    return RC_OK;
+
+}
+
