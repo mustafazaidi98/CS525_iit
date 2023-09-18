@@ -11,14 +11,14 @@ void initStorageManager(void) {
 }
 
 // Create a page file -> responsible for read and write
-
+FILE *file;
 RC createPageFile(char *fileName) { 
 
     // Initializes file pointer within the function scope 
-    FILE *newFilePtr = fopen(fileName , "w+"); 
+    file = fopen(fileName , "w+"); 
 
     // Check if the file was successfully created 
-    if (newFilePtr == NULL) { 
+    if (file == NULL) { 
         return RC_FILE_NOT_FOUND; 
     }
 
@@ -27,7 +27,7 @@ RC createPageFile(char *fileName) {
 
     // Check if memory allocation was successful 
     if(pageBuffer == NULL){
-        fclose(newFilePtr); 
+        fclose(file); 
         return RC_WRITE_FAILED; 
     }
 
@@ -35,18 +35,18 @@ RC createPageFile(char *fileName) {
     memset(pageBuffer, '\0' , PAGE_SIZE); 
 
     // Write the buffer to file 
-    size_t bytesWritten = fwrite(pageBuffer, sizeof(char) , PAGE_SIZE, newFilePtr); 
+    size_t bytesWritten = fwrite(pageBuffer, sizeof(char) , PAGE_SIZE, file); 
 
     // Check if all the writes are successful 
     if (bytesWritten != PAGE_SIZE){ 
         free(pageBuffer); 
-        fclose(newFilePtr); 
+        fclose(file); 
         return RC_WRITE_FAILED; 
     }
 
     // Free the allocated memory and close the file
     free(pageBuffer); 
-    fclose(newFilePtr); 
+    fclose(file); 
 
     return RC_OK;  
 
@@ -146,7 +146,6 @@ RC readBlock(int pageNum,SM_FileHandle *fHandle,SM_PageHandle memPage){
 	if(pageNum<0||(*fHandle).totalNumPages<pageNum){
 		return RC_READ_NON_EXISTING_PAGE;
 	}
-    	FILE *file;
 		float memPageSize;
 		//moving file start pointer to required page
 		fseek(file,pageNum*PAGE_SIZE, SEEK_SET);
