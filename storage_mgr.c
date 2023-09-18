@@ -9,7 +9,7 @@
 void initStorageManager(void) {
     printf("Storage Manager Initialized\n");
 }
-FILE file;
+FILE *file;
 // Create a page file -> responsible for read and write
 
 RC createPageFile(char *fileName) { 
